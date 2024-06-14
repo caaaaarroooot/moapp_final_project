@@ -1,13 +1,26 @@
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
+import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+import 'package:intl/intl.dart';
+import '../models/kick_models.dart';
+import '../provider/kickCounterProvider.dart';
+import './utils.dart' as utils;
+import '../models/push_up_models.dart';
+import 'painters/pose_painter.dart';
+import 'package:provider/provider.dart';
 
 class CameraView extends StatefulWidget {
   CameraView(
       {Key? key,
+      required this.posePainter,
       required this.customPaint,
       required this.onImage,
       this.onCameraFeedReady,
@@ -16,6 +29,7 @@ class CameraView extends StatefulWidget {
       this.initialCameraLensDirection = CameraLensDirection.back})
       : super(key: key);
 
+  final PosePainter? posePainter;
   final CustomPaint? customPaint;
   final Function(InputImage inputImage) onImage;
   final VoidCallback? onCameraFeedReady;
@@ -39,6 +53,10 @@ class _CameraViewState extends State<CameraView> {
   double _currentExposureOffset = 0.0;
   bool _changingCameraLens = false;
 
+  PoseLandmark? p1;
+  PoseLandmark? p2;
+  PoseLandmark? p3;
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +77,78 @@ class _CameraViewState extends State<CameraView> {
     if (_cameraIndex != -1) {
       _startLiveFeed();
     }
+  }
+
+  // @override
+  // void didUpdateWidget(covariant CameraView oldWidget) {
+  //   if (widget.customPaint != oldWidget.customPaint) {
+  //     if (widget.customPaint == null) return;
+  //     final bloc = BlocProvider.of<PushUpCounter>(context);
+  //     for (final pose in widget.posePainter!.poses) {
+  //       PoseLandmark getPoseLandmark(PoseLandmarkType type1) {
+  //         final PoseLandmark joint1 = pose.landmarks[type1]!;
+  //         return joint1;
+  //       }
+
+  //       p1 = getPoseLandmark(PoseLandmarkType.rightShoulder);
+  //       p2 = getPoseLandmark(PoseLandmarkType.rightElbow);
+  //       p3 = getPoseLandmark(PoseLandmarkType.rightWrist);
+  //     }
+
+  //     if (p1 != null && p2 != null && p3 != null) {
+  //       final rtaAngle = utils.getAngle(p1!, p2!, p3!);
+  //       print("Angle: ${rtaAngle.toStringAsFixed(2)}");
+  //       final rta = utils.isPushUp(rtaAngle, bloc.state);
+  //       if (rta != null) {
+  //         if (rta == PushUpState.init) {
+  //           bloc.setPushUpState(rta);
+  //         } else if (rta == PushUpState.complete) {
+  //           bloc.increment();
+  //           bloc.setPushUpState(PushUpState.neutral);
+  //         }
+  //       }
+  //     } else {
+  //       print("p1 or p2 or p3 is null");
+  //     }
+  //   }
+  //   super.didUpdateWidget(oldWidget);
+  // }
+  void didUpdateWidget(covariant CameraView oldWidget) {
+    final kickCounterProvider = Provider.of<KickCounterProvider>(context);
+
+    if (widget.customPaint != oldWidget.customPaint) {
+      if (widget.customPaint == null) return;
+      final bloc = BlocProvider.of<KickCounter>(context);
+      for (final pose in widget.posePainter!.poses) {
+        PoseLandmark getPoseLandmark(PoseLandmarkType type1) {
+          final PoseLandmark joint1 = pose.landmarks[type1]!;
+          return joint1;
+        }
+
+        p1 = getPoseLandmark(PoseLandmarkType.rightHip);
+        p2 = getPoseLandmark(PoseLandmarkType.rightKnee);
+        p3 = getPoseLandmark(PoseLandmarkType.rightAnkle);
+      }
+
+      if (p1 != null && p2 != null && p3 != null) {
+        final kneeAngle = utils.getAngle(p1!, p2!, p3!);
+        print("Knee Angle: ${kneeAngle.toStringAsFixed(2)}");
+        final kickState = utils.isKick(kneeAngle, bloc.state);
+        if (kickState != null) {
+          if (kickState == KickState.init) {
+            bloc.setKickState(kickState);
+          } else if (kickState == KickState.complete) {
+            bloc.increment();
+            print("count: ${kickCounterProvider.count}");
+
+            bloc.setKickState(KickState.neutral);
+          }
+        }
+      } else {
+        print("p1 또는 p2 또는 p3가 null입니다");
+      }
+    }
+    super.didUpdateWidget(oldWidget);
   }
 
   @override
@@ -91,12 +181,54 @@ class _CameraViewState extends State<CameraView> {
                     child: widget.customPaint,
                   ),
           ),
+          _counterWidget(),
           _backButton(),
           _switchLiveCameraToggle(),
           _detectionViewModeToggle(),
           _zoomControl(),
           _exposureControl(),
         ],
+      ),
+    );
+  }
+
+  Widget _counterWidget() {
+    final bloc = BlocProvider.of<KickCounter>(context);
+
+    return Positioned(
+      left: 0,
+      top: 50,
+      right: 0,
+      child: Container(
+        width: 70,
+        child: Column(
+          children: [
+            Text(
+              'Counter',
+              style: TextStyle(color: Colors.white),
+            ),
+            Container(
+              width: 70,
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                border: Border.all(
+                    color: Colors.white.withOpacity(0.4), width: 4.0),
+                borderRadius: BorderRadius.all(
+                  Radius.circular(12),
+                ),
+              ),
+              child: Text(
+                '${bloc.count}',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 30.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -109,7 +241,14 @@ class _CameraViewState extends State<CameraView> {
           width: 50.0,
           child: FloatingActionButton(
             heroTag: Object(),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              if (mounted) {
+                Provider.of<KickCounterProvider>(context, listen: false)
+                    .setProgress2(BlocProvider.of<KickCounter>(context).count);
+                BlocProvider.of<KickCounter>(context).reset();
+                Navigator.of(context).pop();
+              }
+            },
             backgroundColor: Colors.black54,
             child: Icon(
               Icons.arrow_back_ios_outlined,

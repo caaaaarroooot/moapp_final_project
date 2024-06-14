@@ -26,6 +26,12 @@ if (flutterVersionName == null) {
 }
 
 android {
+    configurations.all {
+        resolutionStrategy {
+            force 'com.squareup.okhttp:okhttp:2.7.5'
+            force 'com.squareup.okio:okio:1.17.5'
+        }
+    }
     namespace "com.google.ml.kit.flutter.example"
     compileSdk 34
     ndkVersion flutter.ndkVersion

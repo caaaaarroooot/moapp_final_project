@@ -1,9 +1,11 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
+import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
 import 'detector_view.dart';
 import 'painters/object_detector_painter.dart';
+import 'painters/pose_painter.dart';
 import 'utils.dart';
 
 class ObjectDetectorView extends StatefulWidget {
@@ -12,6 +14,7 @@ class ObjectDetectorView extends StatefulWidget {
 }
 
 class _ObjectDetectorView extends State<ObjectDetectorView> {
+  PosePainter? _posePainter;
   ObjectDetector? _objectDetector;
   DetectionMode _mode = DetectionMode.stream;
   bool _canProcess = false;
@@ -54,6 +57,7 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
     return Scaffold(
       body: Stack(children: [
         DetectorView(
+          posePainter: _posePainter ?? _defaultPosePainter(),
           title: 'Object Detector',
           customPaint: _customPaint,
           text: _text,
@@ -85,6 +89,11 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
             )),
       ]),
     );
+  }
+
+  PosePainter _defaultPosePainter() {
+    return PosePainter(
+        [], Size.zero, InputImageRotation.rotation0deg, _cameraLensDirection);
   }
 
   Widget _buildDropdown() => DropdownButton<int>(

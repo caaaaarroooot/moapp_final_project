@@ -1,11 +1,17 @@
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../component/SignUpBtn.dart';
 import '../component/login_textfield.dart';
 import '../component/my_button.dart';
+import '../fierstore/saveGoalAndProgress.dart';
+import '../fierstore/upateGoal.dart';
+import '../fierstore/updateProgress.dart';
+import '../provider/kickCounterProvider.dart';
+import 'package:provider/provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,15 +24,7 @@ class _LoginPageYoutubeState extends State<LoginPage> {
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
 
-  void signUserIn() async {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
-      },
-    );
+  void signUserIn(BuildContext context) async {
     try {
       print(usernameController.text);
       print(passwordController.text);
@@ -34,11 +32,11 @@ class _LoginPageYoutubeState extends State<LoginPage> {
         email: usernameController.text,
         password: passwordController.text,
       );
-      // 로그인 성공 시 추가 작업 (예: 화면 전환)
+
       print('로그인 성공');
-      Navigator.pop(context);
+      // Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
-      Navigator.pop(context);
+      Navigator.of(context).pop(); // 수정된 부분
       print('Code: ${e.code}');
       print('Message: ${e.message}');
       if (e.code == 'invalid-email') {
@@ -77,6 +75,7 @@ class _LoginPageYoutubeState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final kickCounterProvider = Provider.of<KickCounterProvider>(context);
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 240, 240, 240),
       body: SingleChildScrollView(
@@ -138,7 +137,9 @@ class _LoginPageYoutubeState extends State<LoginPage> {
                 ),
                 MyButton(
                   text: "Log In",
-                  onTap: signUserIn,
+                  onTap: () {
+                    signUserIn(context);
+                  },
                 ),
                 const SizedBox(
                   height: 50,
